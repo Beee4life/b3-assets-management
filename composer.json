@@ -1,0 +1,19 @@
+{
+  "name": "beee4life/b3-assets-management",
+  "description": "Manage assets storage with Google Cloud Storage",
+  "homepage": "https://github.com/beee4life/b3-assets-management",
+  "type": "wordpress-plugin",
+  "authors": [
+    {
+      "name": "Berry Plasman"
+    }
+  ],
+  "require": {
+    "composer/installers": "^1.0 || ^2.0"
+  },
+  "config": {
+    "allow-plugins": {
+      "composer/installers": true
+    }
+  }
+}
