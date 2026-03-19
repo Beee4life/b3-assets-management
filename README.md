@@ -37,11 +37,24 @@ There are 3 test functions in the test file.
 Best not to run them together, but individually.
 
 ### Available filters
-* `apply_filters( 'b3_assets_folder', 'wp-content' )`
+**b3_assets_folder**
+
+```
+function pb_upload_folder( $folder ) {
+    return 'app';
+}
+add_filter( 'b3_assets_folder', 'pb_upload_folder' );
+```
 
 ### Available actions
-* `do_action( 'do_after_upload', $attachment_id, $file_path )`
+**do_after_upload**
 
+```
+function b3_do_after_gsc_upload( $attachment_id, $file_path ) {
+    // do something
+}
+add_action( 'after_successful_gsc_upload', 'b3_do_after_gsc_upload', 10, 2 );
+```
 #### @TODO
 
 * add option to delete media after upload
