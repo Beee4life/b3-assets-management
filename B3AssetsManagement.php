@@ -13,38 +13,43 @@
      */
     class B3AssetsManagement {
         protected array $settings = array();
-        private $storage_client = null; // Store client here for reuse
+        private $storage_client = null;
 
         public function __construct() {
             $this->settings = [
+                'block_connection'  => getenv( 'BLOCK_CONNECTION' ) ? true : false,
                 'gsc-bucket-name'   => getenv( 'GSC_BUCKET_NAME' ),
                 'gsc-key-file-path' => getenv( 'GSC_KEY_FILE_PATH' ),
-                'block_connection'  => getenv( 'BLOCK_CONNECTION' ) ? true : false,
+                'version'           => '0.1',
             ];
 
             // (de)activation hooks
-            register_activation_hook( __FILE__,     [ $this, 'pb_plugin_activation' ] );
-            register_deactivation_hook( __FILE__,   [ $this, 'pb_plugin_deactivation' ] );
+            register_activation_hook( __FILE__,     [ $this, 'plugin_activation' ] );
+            register_deactivation_hook( __FILE__,   [ $this, 'plugin_deactivation' ] );
 
-            add_action( 'remove_assets_by_cron',            [ $this, 'pb_remove_local_files' ] );
-            add_action( 'add_assets_to_gcs',                [ $this, 'pb_add_to_bucket' ], 10, 2 );
-            add_action( 'delete_assets_from_gcs',           [ $this, 'pb_delete_from_bucket' ] );
-            add_action( 'delete_local_folder',              [ $this, 'pb_check_folder_to_delete' ] );
-            add_action( 'delete_video',                     [ $this, 'pb_immediate_local_video_deletion' ] );
-            add_action( 'delete_attachment',                [ $this, 'pb_delete_media_straight_away' ], 10, 2 );
+            if ( static::class === 'B3AssetsManagement' ) {
+                add_action( 'admin_menu', [ $this, 'add_admin_pages' ] );
+            }
 
-            add_filter( 'wp_generate_attachment_metadata',  [ $this, 'pb_filter_save_post_metadata' ], 1, 2 );
-            add_filter( 'wp_generate_attachment_metadata',  [ $this, 'pb_filter_get_post_metadata' ], 25, 2 );
-            add_filter( 'wp_generate_attachment_metadata',  [ $this, 'pb_after_insert_asset' ], 30, 2 );
-            add_filter( 'wp_handle_upload_prefilter',       [ $this, 'pb_rename_file' ] );
+            add_action( 'admin_init',                       [ $this, 'form_handling' ] );
+            add_action( 'admin_enqueue_scripts',            [ $this, 'enqueue_admin_style' ] );
+            add_action( 'remove_assets_by_cron',            [ $this, 'remove_local_files' ] );
+            add_action( 'add_assets_to_gcs',                [ $this, 'add_to_bucket' ], 10, 2 );
+            add_action( 'delete_assets_from_gcs',           [ $this, 'delete_from_bucket' ] );
+            add_action( 'delete_local_folder',              [ $this, 'check_folder_to_delete' ] );
+            add_action( 'delete_video',                     [ $this, 'immediate_local_video_deletion' ] );
+            add_action( 'delete_attachment',                [ $this, 'delete_media_straight_away' ], 10, 2 );
+
+            add_filter( 'wp_generate_attachment_metadata',  [ $this, 'filter_save_post_metadata' ], 1, 2 );
+            add_filter( 'wp_generate_attachment_metadata',  [ $this, 'filter_get_post_metadata' ], 25, 2 );
+            add_filter( 'wp_generate_attachment_metadata',  [ $this, 'after_insert_asset' ], 30, 2 );
+            add_filter( 'wp_handle_upload_prefilter',       [ $this, 'rename_file' ] );
 
             include_once 'B3AssetsManagementTest.php';
         }
 
-        /*
-         * Function which runs upon plugin activation
-         */
-        public function pb_plugin_activation() {
+        // Function which runs upon plugin activation
+        public function plugin_activation() {
             $cron = 'remove_assets_by_cron';
             if ( ! wp_next_scheduled( $cron ) ) {
                 $scheduled = wp_schedule_event( time(), 'daily', $cron );
@@ -56,17 +61,45 @@
             }
         }
 
-        /*
-         * Function which runs upon plugin deactivation to delete any cron jobs
-         */
-        public function pb_plugin_deactivation() {
+        // Function which runs upon plugin deactivation to delete any cron jobs
+        public function plugin_deactivation() {
             $ts_cron_reminder = wp_next_scheduled( 'remove_assets_by_cron' );
             wp_unschedule_event( $ts_cron_reminder, 'remove_assets_by_cron' );
         }
 
-        /*
-         * Reuses the StorageClient to avoid re-authenticating for every file.
-         */
+        public function add_admin_pages() {
+            include_once 'b3-admin-page.php';
+            add_submenu_page( 'upload.php', 'Assets Management', 'Assets Management', 'manage_options', 'b3-assets-management', 'b3_assets_management_admin' );
+        }
+
+        public function form_handling() {
+            if ( isset( $_POST[ 'b3_settings_nonce' ] ) ) {
+                if ( ! wp_verify_nonce( $_POST[ 'b3_settings_nonce' ], 'b3-settings-nonce' ) ) {
+                    $message = esc_html__( 'Link expired', 'b3-assets-management');
+                    B3AssetsManagement::b3am_errors()->add( 'error_settings_saved', $message );
+                } else {
+                    // all ok
+                    if ( ! empty( $_POST[ 'b3_bucket_name' ] ) ) {
+                        update_option( 'b3_gsc_bucket_name', sanitize_text_field( $_POST[ 'b3_bucket_name' ] ) );
+                    } else {
+                        delete_option( 'b3_gsc_bucket_name' );
+                    }
+                    if ( ! empty( $_POST[ 'b3_bucket_id' ] ) ) {
+                        update_option( 'b3_gsc_bucket_id', sanitize_text_field( $_POST[ 'b3_bucket_id' ] ) );
+                    } else {
+                        delete_option( 'b3_gsc_bucket_id' );
+                    }
+                    $message = esc_html__( 'Settings saved.', 'b3-assets-management');
+                    B3AssetsManagement::b3am_errors()->add( 'success_settings_saved', $message );
+                }
+            }
+        }
+
+        public function enqueue_admin_style() {
+            wp_register_style( 'b3am', plugins_url( 'style.css', __FILE__ ), false, get_plugin_data( __FILE__ )[ 'Version' ] );
+            wp_enqueue_style( 'b3am' );
+        }
+
         protected function get_gcs_client() {
             if ( null === $this->storage_client ) {
                 $this->storage_client = new Google\Cloud\Storage\StorageClient( [
@@ -77,10 +110,7 @@
             return $this->storage_client;
         }
 
-        /*
-         * Function triggered by job to check if assets should be deleted
-         */
-        public function pb_remove_local_files() {
+        public function remove_local_files() {
             $attachment_ids = $this->get_posts_to_delete();
 
             if ( is_array( $attachment_ids ) && ! empty( $attachment_ids ) ) {
@@ -100,7 +130,7 @@
             }
         }
 
-        public function pb_strip_file_name( string $path ) {
+        public function strip_file_name( string $path ) {
             if ( ! $path ) {
                 return;
             }
@@ -112,12 +142,12 @@
             return $folder_path;
         }
 
-        public function pb_check_folder_to_delete( string $path ) {
+        public function check_folder_to_delete( string $path ) {
             if ( ! $path ) {
                 return;
             }
 
-            $folder_path = $this->pb_strip_file_name( $path );
+            $folder_path = $this->strip_file_name( $path );
 
             if ( is_dir( $folder_path ) ) {
                 $folder_contents = pb_scan_folder( $folder_path );
@@ -128,7 +158,7 @@
             }
         }
 
-        public function pb_add_to_bucket( array $file_paths, int $attachment_id ) {
+        public function add_to_bucket( int $attachment_id, array $file_paths ) {
             if ( empty( $file_paths ) ) {
                 return;
             }
@@ -156,7 +186,7 @@
                     }
 
                     // 3. Construct the Bucket Destination
-                    $bucket_destination = 'app/uploads/' . ltrim( $clean_name, '/' );
+                    $bucket_destination = sprintf( '%s/uploads/%s', apply_filters( 'b3_assets_folder', 'wp-content' ), ltrim( $clean_name, '/' ) );
 
                     if ( false === $this->settings[ 'block_connection' ] ) {
                         $bucket->upload(
@@ -166,27 +196,25 @@
 
                         // Only delete if Google confirms the object exists in the bucket
                         if ( $bucket && $bucket->exists() ) {
-                            if ( wp_attachment_is( 'video', $attachment_id ) ) {
-                                do_action( 'delete_video', $attachment_id );
-                            }
+                            do_action( 'after_successful_upload', $attachment_id );
                         }
                     }
                 }
+
             } catch ( \Exception $e ) {
                 error_log( sprintf( "GCS Critical Error: %s, but we'll retry", $e->getMessage() ) );
 
-                // Use a static variable to prevent infinite recursion in the same request
                 static $retry_count = 0;
                 if ( $retry_count < 2 ) {
                     $retry_count++;
-                    do_action( 'add_assets_to_gcs', $file_paths, $attachment_id );
+                    do_action( 'add_assets_to_gcs', $attachment_id, $file_paths );
                 } else {
                     error_log( "GCS Max retries reached for Attachment $attachment_id. Giving up." );
                 }
             }
         }
 
-        public function pb_delete_from_bucket( array $file_ids ) {
+        public function delete_from_bucket( array $file_ids ) {
             if ( empty( $file_ids ) ) {
                 return;
             }
@@ -219,8 +247,80 @@
             }
         }
 
+        public function filter_save_post_metadata( $metadata, $post_id ) {
+            update_post_meta( $post_id, 'temp_metadata', serialize( $metadata ) );
+            return $metadata;
+        }
+
+        public function filter_get_post_metadata( $metadata, $post_id ) {
+            $stored_meta = get_post_meta( $post_id, 'temp_metadata', true );
+            if ( ! empty( $stored_meta ) ) {
+                delete_post_meta( $post_id, 'temp_metadata' );
+                return unserialize( $stored_meta );
+            }
+
+            return $metadata;
+        }
+
+        public function after_insert_asset( array $metadata, int $attachment_id ) : array {
+            if ( is_array( $metadata ) && $attachment_id ) {
+                if ( false === $this->settings[ 'block_connection' ] ) {
+                    $file_paths = B3AssetsManagement::get_file_paths( $attachment_id );
+
+                    if ( ! empty( $file_paths ) ) {
+                        do_action( 'add_assets_to_gcs', $attachment_id, $file_paths );
+                    }
+                }
+            }
+
+            return $metadata;
+        }
+
+        public function get_posts_to_delete() {
+            $asset_args = [
+                'post_type'      => 'attachment',
+                'posts_per_page' => -1,
+                'fields'         => 'ids',
+                'date_query'     => [
+                    [
+                        'after'     => '48 hours ago', // Targets assets newer than 48 hours
+                        'inclusive' => true,
+                    ],
+                    [
+                        'before'    => '24 hours ago', // Targets assets older than 24 hours
+                        'inclusive' => true,
+                    ],
+                ],
+            ];
+            $assets = get_posts( $asset_args );
+
+            return $assets;
+        }
+
+        public function rename_file( $file ) {
+            $file[ 'name' ] = strtolower( $file[ 'name' ] );
+
+            return $file;
+        }
+
+        // Delete asset straight away (upon delete attachment)
+        public function delete_media_straight_away( int $attachment_id, WP_Post $post ) {
+            if ( false === $this->settings[ 'block_connection' ] ) {
+                do_action( 'delete_assets_from_gcs', [ $attachment_id ] );
+            }
+        }
+
+        public function immediate_local_video_deletion( int $attachment_id ) {
+            if ( wp_attachment_is( 'video', $attachment_id ) ) {
+                $local_path = get_attached_file( $attachment_id );
+                if ( file_exists( $local_path ) ) {
+                    unlink( $local_path );
+                }
+            }
+        }
+
         /*
-         * Get file paths
+         * Get file paths for files to upload
          * Uses relative upload path to match bucket structure perfectly.
          */
         public static function get_file_paths( $post_id ) {
@@ -250,80 +350,45 @@
             return array_unique( $paths );
         }
 
-        public function pb_filter_save_post_metadata( $metadata, $post_id ) {
-            update_post_meta( $post_id, 'temp_metadata', serialize( $metadata ) );
-            return $metadata;
+        public static function b3am_errors() {
+            static $wp_error; // Will hold global variable safely
+
+            return isset( $wp_error ) ? $wp_error : ( $wp_error = new WP_Error( null, null, null ) );
         }
 
-        public function pb_filter_get_post_metadata( $metadata, $post_id ) {
-            $stored_meta = get_post_meta( $post_id, 'temp_metadata', true );
-            if ( ! empty( $stored_meta ) ) {
-                return unserialize( $stored_meta );
-            }
+        public static function show_admin_notices() {
+            if ( $codes = B3AssetsManagement::b3am_errors()->get_error_codes() ) {
+                if ( is_wp_error( B3AssetsManagement::b3am_errors() ) ) {
 
-            return $metadata;
-        }
-
-        public function get_posts_to_delete() {
-            $asset_args = [
-                'post_type'      => 'attachment',
-                'posts_per_page' => -1,
-                'fields'         => 'ids',
-                'date_query'     => [
-                    [
-                        'after'     => '48 hours ago', // Targets assets newer than 48 hours
-                        'inclusive' => true,
-                    ],
-                    [
-                        'before'    => '24 hours ago', // Targets assets older than 24 hours
-                        'inclusive' => true,
-                    ],
-                ],
-            ];
-            $assets = get_posts( $asset_args );
-
-            return $assets;
-        }
-
-        public function pb_rename_file( $file ) {
-            $file[ 'name' ] = strtolower( $file[ 'name' ] );
-
-            return $file;
-        }
-
-        /*
-         * Function which triggers the upload to bucket
-         */
-        public function pb_after_insert_asset( array $meta_data, int $attachment_id ) : array {
-            if ( is_array( $meta_data ) && $attachment_id ) {
-                if ( false === $this->settings[ 'block_connection' ] ) {
-                    $paths = B3AssetsManagement::get_file_paths( $attachment_id );
-                    if ( ! empty( $paths ) ) {
-                        do_action( 'add_assets_to_gcs', $paths, $attachment_id );
+                    // Loop error codes and display errors
+                    $span_class = false;
+                    $prefix     = false;
+                    foreach ( $codes as $code ) {
+                        if ( strpos( $code, 'success' ) !== false ) {
+                            $span_class = 'updated ';
+                            $prefix     = false;
+                        } elseif ( strpos( $code, 'warning' ) !== false ) {
+                            $span_class = 'notice-warning ';
+                            $prefix     = esc_html( __( 'Warning', 'csv2wp' ) );
+                        } elseif ( strpos( $code, 'info' ) !== false ) {
+                            $span_class = 'notice-info ';
+                            $prefix     = false;
+                        } else {
+                            $span_class = 'notice-error ';
+                            $prefix     = esc_html( __( 'Error', 'csv2wp' ) );
+                        }
                     }
-                }
-            }
-
-            return $meta_data;
-        }
-
-        /*
-         * Function to delete asset straight away (upon delete attachment)
-         */
-        public function pb_delete_media_straight_away( int $attachment_id, WP_Post $post ) {
-            if ( false === $this->settings[ 'block_connection' ] ) {
-                do_action( 'delete_assets_from_gcs', [ $attachment_id ] );
-            }
-        }
-
-        /*
-         * If it's a video we can delete it locally right away, since we don't need it for thumbnails.
-         */
-        public function pb_immediate_local_video_deletion( int $attachment_id ) {
-            if ( wp_attachment_is( 'video', $attachment_id ) ) {
-                $local_path = get_attached_file( $attachment_id );
-                if ( file_exists( $local_path ) ) {
-                    unlink( $local_path );
+                    echo '<div id="message" class="notice ' . $span_class . 'csv2wp__notice is-dismissible">';
+                    foreach ( $codes as $code ) {
+                        $message = B3AssetsManagement::b3am_errors()->get_error_message( $code );
+                        echo '<div class="">';
+                        if ( true == $prefix ) {
+                            echo '<strong>' . $prefix . ':</strong> ';
+                        }
+                        echo $message;
+                        echo '</div>';
+                    }
+                    echo '</div>';
                 }
             }
         }

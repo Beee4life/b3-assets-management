@@ -1,0 +1,39 @@
+/**
+    Style for Assets plugin
+ */
+
+.assets-management {
+    max-width: 100%;
+}
+
+.assets-management h2 {
+    margin-top: 0;
+}
+
+.assets-management .admin_left {
+    max-width: 960px;
+}
+
+.assets-management .admin_left .content {
+    background: white;
+    box-sizing:            border-box;
+    border:                1px solid #cccccc;
+    margin-top:            10px;
+    padding:               10px;
+    -moz-border-radius:    8px;
+    -webkit-border-radius: 8px;
+}
+
+.b3-form label {
+    display: inline-block;
+    width: 100px;
+}
+
+.b3-form .row {
+    + .row {
+        margin-top: 10px;
+    }
+    + .row--submit {
+        margin-top: 20px;
+    }
+}
