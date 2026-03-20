@@ -249,6 +249,7 @@
 
         public function filter_save_post_metadata( $metadata, $post_id ) {
             update_post_meta( $post_id, 'temp_metadata', serialize( $metadata ) );
+            update_post_meta( $post_id, '_uploaded_to_bucket', 1 );
             return $metadata;
         }
 
