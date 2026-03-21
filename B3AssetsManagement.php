@@ -196,7 +196,7 @@
 
                         // Only delete if Google confirms the object exists in the bucket
                         if ( $bucket && $bucket->exists() ) {
-                            do_action( 'after_successful_gsc_upload', $attachment_id );
+                            do_action( 'after_successful_gsc_upload', $attachment_id, $file_path );
                         }
                     }
                 }
