@@ -299,7 +299,7 @@
                     ],
                 ],
             ];
-            $assets = get_posts( apply_filters( 'b3_asset_query_args', $asset_args ) );
+            $assets = get_posts( apply_filters( 'b3_assets_query_args', $asset_args ) );
 
             return $assets;
         }
