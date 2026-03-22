@@ -1,6 +1,6 @@
 <?php
     /*
-        Plugin Name: B3 Assets management
+        Plugin Name: B3 Assets management (dev)
         Description: Manages assets handling for Google Cloud Storage
         Version: 0.1
         Author: Beee
@@ -37,7 +37,6 @@
             add_action( 'add_assets_to_gcs',                [ $this, 'add_to_bucket' ], 10, 2 );
             add_action( 'delete_assets_from_gcs',           [ $this, 'delete_from_bucket' ] );
             add_action( 'delete_local_folder',              [ $this, 'check_folder_to_delete' ] );
-            add_action( 'delete_video',                     [ $this, 'immediate_local_video_deletion' ] );
             add_action( 'delete_attachment',                [ $this, 'delete_media_straight_away' ], 10, 2 );
 
             add_filter( 'wp_generate_attachment_metadata',  [ $this, 'filter_save_post_metadata' ], 1, 2 );
@@ -48,7 +47,6 @@
             include_once 'B3AssetsManagementTest.php';
         }
 
-        // Function which runs upon plugin activation
         public function plugin_activation() {
             $cron = 'remove_assets_by_cron';
             if ( ! wp_next_scheduled( $cron ) ) {
@@ -61,7 +59,6 @@
             }
         }
 
-        // Function which runs upon plugin deactivation to delete any cron jobs
         public function plugin_deactivation() {
             $ts_cron_reminder = wp_next_scheduled( 'remove_assets_by_cron' );
             wp_unschedule_event( $ts_cron_reminder, 'remove_assets_by_cron' );
@@ -89,6 +86,11 @@
                     } else {
                         delete_option( 'b3_gsc_bucket_id' );
                     }
+                    if ( ! empty( $_POST[ 'b3_delete_by_cron' ] ) ) {
+                        update_option( 'b3_delete_by_cron', (int) $_POST[ 'b3_delete_by_cron' ] );
+                    } else {
+                        delete_option( 'b3_delete_by_cron' );
+                    }
                     $message = esc_html__( 'Settings saved.', 'b3-assets-management');
                     B3AssetsManagement::b3am_errors()->add( 'success_settings_saved', $message );
                 }
@@ -111,19 +113,23 @@
         }
 
         public function remove_local_files() {
-            $attachment_ids = $this->get_posts_to_delete();
+            $delete = get_option( 'b3_delete_by_cron' );
 
-            if ( is_array( $attachment_ids ) && ! empty( $attachment_ids ) ) {
-                foreach ( $attachment_ids as $asset_id ) {
-                    $paths         = self::get_file_paths( $asset_id );
-                    $wp_upload_dir = wp_upload_dir();
+            if ( $delete ) {
+                $attachment_ids = $this->get_posts_to_delete();
 
-                    foreach( $paths as $path ) {
-                        $full_path = sprintf( '%s/%s', $wp_upload_dir[ 'basedir' ], $path );
+                if ( is_array( $attachment_ids ) && ! empty( $attachment_ids ) ) {
+                    foreach ( $attachment_ids as $asset_id ) {
+                        $paths         = self::get_file_paths( $asset_id );
+                        $wp_upload_dir = wp_upload_dir();
 
-                        if ( file_exists( $full_path ) ) {
-                            unlink( $full_path );
-                            do_action( 'delete_local_folder', $full_path );
+                        foreach( $paths as $path ) {
+                            $full_path = sprintf( '%s/%s', $wp_upload_dir[ 'basedir' ], $path );
+
+                            if ( file_exists( $full_path ) ) {
+                                unlink( $full_path );
+                                do_action( 'delete_local_folder', $full_path );
+                            }
                         }
                     }
                 }
@@ -205,7 +211,7 @@
                 error_log( sprintf( "GCS Critical Error: %s, but we'll retry", $e->getMessage() ) );
 
                 static $retry_count = 0;
-                if ( $retry_count < 2 ) {
+                if ( $retry_count < 1 ) {
                     $retry_count++;
                     do_action( 'add_assets_to_gcs', $attachment_id, $file_paths );
                 } else {
@@ -293,7 +299,7 @@
                     ],
                 ],
             ];
-            $assets = get_posts( $asset_args );
+            $assets = get_posts( apply_filters( 'b3_asset_query_args', $asset_args ) );
 
             return $assets;
         }
@@ -304,19 +310,10 @@
             return $file;
         }
 
-        // Delete asset straight away (upon delete attachment)
+        // Delete asset straight away (when attachment gets deleted)
         public function delete_media_straight_away( int $attachment_id, WP_Post $post ) {
             if ( false === $this->settings[ 'block_connection' ] ) {
                 do_action( 'delete_assets_from_gcs', [ $attachment_id ] );
-            }
-        }
-
-        public function immediate_local_video_deletion( int $attachment_id ) {
-            if ( wp_attachment_is( 'video', $attachment_id ) ) {
-                $local_path = get_attached_file( $attachment_id );
-                if ( file_exists( $local_path ) ) {
-                    unlink( $local_path );
-                }
             }
         }
 
