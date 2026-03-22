@@ -1,6 +1,7 @@
 <?php
-    $bucket_id   = get_option( 'b3_gsc_bucket_id' );
-    $bucket_name = get_option( 'b3_gsc_bucket_name' );
+    $bucket_id      = get_option( 'b3_gsc_bucket_id' );
+    $bucket_name    = get_option( 'b3_gsc_bucket_name' );
+    $delete_by_cron = get_option( 'b3_delete_by_cron' );
 ?>
 <div class="b3-form">
 
@@ -17,6 +18,11 @@
         <div class="row">
             <label for="bucket-name">Bucket name</label>
             <input type="text" id="bucket-name" name="b3_bucket_name" value="<?php echo $bucket_name; ?>" placeholder="<?php echo getenv( 'GSC_BUCKET_NAME' ); ?>" />
+        </div>
+
+        <div class="row">
+            <label for="delete_by_cron">Delete by cron</label>
+            <input type="checkbox" id="delete_by_cron" name="b3_delete_by_cron" value="1" <?php if ( $delete_by_cron == 1 ) echo 'checked="checked"'; ?> />
         </div>
 
         <div class="row row--submit">
