@@ -1,5 +1,4 @@
 <?php
-    $bucket_id      = get_option( 'b3_gsc_bucket_id' );
     $bucket_name    = get_option( 'b3_gsc_bucket_name' );
     $delete_by_cron = get_option( 'b3_delete_by_cron' );
 ?>
@@ -13,10 +12,6 @@
         <p>
             <?php esc_html_e( 'If you see any values as placeholder, that means you have added the values in your .env file already.', 'b3-assets-management' ); ?>
         </p>
-        <div class="row">
-            <label for="bucket-id">Bucket ID</label>
-            <input type="text" id="bucket-id" name="b3_bucket_id" value="<?php echo $bucket_id; ?>" placeholder="<?php echo getenv( 'GSC_BUCKET_ID' ); ?>" />
-        </div>
 
         <div class="row">
             <label for="bucket-name">Bucket name</label>
@@ -24,7 +19,7 @@
         </div>
 
         <div class="row">
-            <label for="delete_by_cron">Delete by cron</label>
+            <label for="delete_by_cron">Delete assets by cron</label>
             <input type="checkbox" id="delete_by_cron" name="b3_delete_by_cron" value="1" <?php if ( $delete_by_cron == 1 ) echo 'checked="checked"'; ?> />
         </div>
 

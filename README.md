@@ -18,7 +18,7 @@ You can either run it from your project root, or from the plugin's folder.
 
 You need to create a service account for your google bucket. That will give you a downloadable json file with your credentials needed to connect to the bucket.
 
-Upload this to the folder above your `public_html` folder.
+Upload this to the folder ABOVE your `public_html` folder.
 
 Add the following values to your .env file.
 ```

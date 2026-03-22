@@ -1,8 +1,8 @@
 <?php
     /*
-        Plugin Name: B3 Assets management (dev)
+        Plugin Name: B3 Assets management
         Description: Manages assets handling for Google Cloud Storage
-        Version: 0.1
+        Version: 0.3
         Author: Beee
         Author URI: https://berryplasman.com
     */
@@ -17,10 +17,10 @@
 
         public function __construct() {
             $this->settings = [
-                'block_connection'  => getenv( 'BLOCK_CONNECTION' ) ? true : false,
-                'gsc-bucket-name'   => getenv( 'GSC_BUCKET_NAME' ),
-                'gsc-key-file-path' => getenv( 'GSC_KEY_FILE_PATH' ),
-                'version'           => '0.1',
+                'block_connection'  => (bool) (getenv('BLOCK_CONNECTION') ?: get_option('b3_gsc_bucket_name')),
+                'gsc-bucket-name'   => getenv('GSC_BUCKET_NAME') ?: get_option('b3_gsc_bucket_name'),
+                'gsc-key-file-path' => getenv('GSC_KEY_FILE_PATH') ?: '',
+                'version'           => '0.3',
             ];
 
             // (de)activation hooks
@@ -82,11 +82,6 @@
                         update_option( 'b3_gsc_bucket_name', sanitize_text_field( $_POST[ 'b3_bucket_name' ] ) );
                     } else {
                         delete_option( 'b3_gsc_bucket_name' );
-                    }
-                    if ( ! empty( $_POST[ 'b3_bucket_id' ] ) ) {
-                        update_option( 'b3_gsc_bucket_id', sanitize_text_field( $_POST[ 'b3_bucket_id' ] ) );
-                    } else {
-                        delete_option( 'b3_gsc_bucket_id' );
                     }
                     if ( ! empty( $_POST[ 'b3_delete_by_cron' ] ) ) {
                         update_option( 'b3_delete_by_cron', (int) $_POST[ 'b3_delete_by_cron' ] );
