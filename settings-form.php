@@ -10,6 +10,9 @@
     <form name="" class="" method="POST" action="">
         <input type="hidden" name="b3_settings_nonce" value="<?php echo wp_create_nonce( 'b3-settings-nonce' ); ?>" />
 
+        <p>
+            <?php esc_html_e( 'If you see any values as placeholder, that means you have added the values in your .env file already.', 'b3-assets-management' ); ?>
+        </p>
         <div class="row">
             <label for="bucket-id">Bucket ID</label>
             <input type="text" id="bucket-id" name="b3_bucket_id" value="<?php echo $bucket_id; ?>" placeholder="<?php echo getenv( 'GSC_BUCKET_ID' ); ?>" />

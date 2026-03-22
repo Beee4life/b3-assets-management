@@ -29,6 +29,8 @@
 
             if ( static::class === 'B3AssetsManagement' ) {
                 add_action( 'admin_menu', [ $this, 'add_admin_pages' ] );
+                add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), [ $this, 'b3_settings_link' ] );
+
             }
 
             add_action( 'admin_init',                       [ $this, 'form_handling' ] );
@@ -346,6 +348,13 @@
             }
 
             return array_unique( $paths );
+        }
+
+        public function b3_settings_link( $links ) {
+            $settings_link = sprintf( '<a href="%s">%s</a>', admin_url( 'media.php?page=b3-assets-management' ), esc_html__( 'Settings', 'b3-onboarding' ) );
+            array_unshift( $links, $settings_link );
+
+            return $links;
         }
 
         public static function b3am_errors() {
