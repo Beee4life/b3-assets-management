@@ -2,7 +2,7 @@
     /*
         Plugin Name: B3 Assets management
         Description: Manages assets handling for Google Cloud Storage
-        Version: 0.3
+        Version: 0.4
         Author: Beee
         Author URI: https://berryplasman.com
     */
@@ -35,7 +35,8 @@
 
             add_action( 'admin_init',                       [ $this, 'form_handling' ] );
             add_action( 'admin_enqueue_scripts',            [ $this, 'enqueue_admin_style' ] );
-            add_action( 'remove_assets_by_cron',            [ $this, 'remove_local_files' ] );
+            add_action( 'remove_assets_by_cron',            [ $this, 'remove_local_files_by_cron' ] );
+            add_action( 'remove_local_file',                [ $this, 'remove_local_file' ] );
             add_action( 'add_assets_to_gcs',                [ $this, 'add_to_bucket' ], 10, 2 );
             add_action( 'delete_assets_from_gcs',           [ $this, 'delete_from_bucket' ] );
             add_action( 'delete_local_folder',              [ $this, 'check_folder_to_delete' ] );
@@ -109,7 +110,7 @@
             return $this->storage_client;
         }
 
-        public function remove_local_files() {
+        public function remove_local_files_by_cron() {
             $delete = get_option( 'b3_delete_by_cron' );
 
             if ( $delete ) {
@@ -117,18 +118,26 @@
 
                 if ( is_array( $attachment_ids ) && ! empty( $attachment_ids ) ) {
                     foreach ( $attachment_ids as $asset_id ) {
-                        $paths         = self::get_file_paths( $asset_id );
-                        $wp_upload_dir = wp_upload_dir();
-
-                        foreach( $paths as $path ) {
-                            $full_path = sprintf( '%s/%s', $wp_upload_dir[ 'basedir' ], $path );
-
-                            if ( file_exists( $full_path ) ) {
-                                unlink( $full_path );
-                                do_action( 'delete_local_folder', $full_path );
-                            }
-                        }
+                        do_action( 'remove_local_file', $asset_id );
                     }
+                }
+            }
+        }
+
+        public function remove_local_file( $attachment_id ) {
+            if ( ! $attachment_id ) {
+                return;
+            }
+
+            $paths         = self::get_file_paths( $asset_id );
+            $wp_upload_dir = wp_upload_dir();
+
+            foreach( $paths as $path ) {
+                $full_path = sprintf( '%s/%s', $wp_upload_dir[ 'basedir' ], $path );
+
+                if ( file_exists( $full_path ) ) {
+                    unlink( $full_path );
+                    do_action( 'delete_local_folder', $full_path );
                 }
             }
         }
