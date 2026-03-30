@@ -198,7 +198,7 @@
                     }
 
                     // 3. Construct the Bucket Destination
-                    $bucket_destination = sprintf( '%s/uploads/%s', apply_filters( 'b3_assets_folder', 'wp-content' ), ltrim( $clean_name, '/' ) );
+                    $bucket_destination = sprintf( '%s/uploads/%s', apply_filters( 'b3_content_folder', 'wp-content' ), ltrim( $clean_name, '/' ) );
 
                     if ( false === $this->settings[ 'block_connection' ] ) {
                         $bucket->upload(

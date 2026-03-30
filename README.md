@@ -34,29 +34,36 @@ There are 3 test functions in the test file.
 2. Test to see if the uploading and deleting works
 3. Test to see if any attachments are queried for possible deletion
 
-Best not to run them together, but individually.
+Best not to run them together, but one by one.
 
 ### Available filters
 **b3_assets_folder**
 
+Default the uploads are stored in `wp-content/uploads`, but the bedrock setup uses `app/uploads`.
+
+That's why you can filter the content folder with the filter `b3_content_folder`.
+
 ```
-function pb_upload_folder( $folder ) {
+function filter_your_custom_content_folder( $folder ) {
     return 'app';
 }
-add_filter( 'b3_assets_folder', 'pb_upload_folder' );
+add_filter( 'b3_content_folder', 'filter_your_custom_content_folder' );
 ```
 
 ### Available actions
-**do_after_upload**
+**after_successful_gsc_upload**
+
+Assets are not deleted from your webserver right away, but you can achieve this with a simple action.
+
+See example below. You don't need to delete the file of course, that depends on your setup. You can do other things as well of course.
+
+This action fires after it's confirmed the asset has been moved to the bucket.
 
 ```
 function b3_do_after_gsc_upload( $attachment_id, $file_path ) {
-    // do something
+    do_action( 'remove_local_file', $attachment_id );
 }
 add_action( 'after_successful_gsc_upload', 'b3_do_after_gsc_upload', 10, 2 );
 ```
-#### @TODO
-
-* add option to delete media after upload
-* add metadata if file is successfully uploaded
-* add admin page for bucket settings
+#### Meta
+Every uploaded asset will get a post meta value of 1, with the key `_uploaded_to_bucket`.
