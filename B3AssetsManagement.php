@@ -124,21 +124,14 @@
             }
         }
 
-        public function remove_local_file( $attachment_id ) {
-            if ( ! $attachment_id ) {
+        public function remove_local_file( $full_path ) {
+            if ( ! $full_path ) {
                 return;
             }
 
-            $paths         = self::get_file_paths( $attachment_id );
-            $wp_upload_dir = wp_upload_dir();
-
-            foreach( $paths as $path ) {
-                $full_path = sprintf( '%s/%s', $wp_upload_dir[ 'basedir' ], $path );
-
-                if ( file_exists( $full_path ) ) {
-                    unlink( $full_path );
-                    do_action( 'delete_local_folder', $full_path );
-                }
+            if ( file_exists( $full_path ) ) {
+                unlink( $full_path );
+                do_action( 'delete_local_folder', $full_path );
             }
         }
 
