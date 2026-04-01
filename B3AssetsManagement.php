@@ -129,7 +129,7 @@
                 return;
             }
 
-            $paths         = self::get_file_paths( $asset_id );
+            $paths         = self::get_file_paths( $attachment_id );
             $wp_upload_dir = wp_upload_dir();
 
             foreach( $paths as $path ) {
