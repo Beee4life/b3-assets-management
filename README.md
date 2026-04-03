@@ -65,5 +65,6 @@ function b3_do_after_gsc_upload( $attachment_id, $file_path ) {
 }
 add_action( 'after_successful_gsc_upload', 'b3_do_after_gsc_upload', 10, 2 );
 ```
-#### Meta
+
+### Meta
 Every uploaded asset will get a post meta value of 1, with the key `_uploaded_to_bucket`.
