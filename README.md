@@ -6,7 +6,7 @@ NOTE: This plugin is built on a Bedrock setup, which makes use of .env files. It
 
 ### Install Google Storage Client
 
-You need to have google cloud storage client installed. It's not included yet with this plugin, so run the following command:
+You need to have Google Cloud Storage client installed. It's not included yet with this plugin, so run the following command:
 
 ```
 composer require google/cloud-storage
@@ -18,7 +18,7 @@ You can either run it from your project root, or from the plugin's folder.
 
 You need to create a service account for your google bucket. That will give you a downloadable json file with your credentials needed to connect to the bucket.
 
-Upload this to the folder ABOVE your `public_html` folder.
+Upload this to the folder ABOVE your `public_html` (or `web`) folder.
 
 Add the following values to your .env file.
 ```
@@ -44,10 +44,9 @@ Default the uploads are stored in `wp-content/uploads`, but the bedrock setup us
 That's why you can filter the content folder with the filter `b3_content_folder`.
 
 ```
-function filter_your_custom_content_folder( $folder ) {
+add_filter( 'b3_content_folder', function( $folder ) {
     return 'app';
-}
-add_filter( 'b3_content_folder', 'filter_your_custom_content_folder' );
+} );
 ```
 
 ### Available actions
@@ -60,11 +59,12 @@ See example below. You don't need to delete the file of course, that depends on 
 This action fires after it's confirmed the asset has been moved to the bucket.
 
 ```
-function b3_do_after_gsc_upload( $attachment_id, $file_path ) {
-    do_action( 'remove_local_file', $attachment_id );
-}
-add_action( 'after_successful_gsc_upload', 'b3_do_after_gsc_upload', 10, 2 );
+add_action( 'after_successful_gsc_upload', function( $attachment_id, $file_path ) {
+    do_action( 'remove_local_file', $file_path );
+}, 10, 2 );
 ```
 
+Do not use `wp_delete_file($attachment_id)` because if the first (resized) image size is successfully uploaded and you would remove the entire attachment, all other resized image sizes will also be deleted.
+
 ### Meta
-Every uploaded asset will get a post meta value of 1, with the key `_uploaded_to_bucket`.
+Every uploaded asset will get a meta value of 1, with the key `_uploaded_to_bucket`.
