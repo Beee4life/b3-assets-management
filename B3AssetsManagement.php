@@ -201,7 +201,6 @@
 
                         // Only do if Google confirms the object exists in the bucket
                         if ( $bucket && $bucket->exists() ) {
-                            update_post_meta( $attachment_id, '_uploaded_to_bucket', 1 );
                             do_action( 'after_successful_gsc_upload', $attachment_id, $file_path );
                         }
                     }
@@ -254,6 +253,7 @@
         }
 
         public function filter_save_post_metadata( $metadata, $post_id ) {
+            update_post_meta( $attachment_id, '_uploaded_to_bucket', 1 );
             update_post_meta( $post_id, 'temp_metadata', serialize( $metadata ) );
             return $metadata;
         }
