@@ -20,7 +20,7 @@
                 'block_connection'  => (bool) (getenv('BLOCK_CONNECTION') ?: get_option('b3_gsc_bucket_name')),
                 'gsc-bucket-name'   => getenv('GSC_BUCKET_NAME') ?: get_option('b3_gsc_bucket_name'),
                 'gsc-key-file-path' => getenv('GSC_KEY_FILE_PATH') ?: '',
-                'version'           => '0.4',
+                'version'           => '0.5',
             ];
 
             // (de)activation hooks
