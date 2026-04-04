@@ -2,7 +2,7 @@
     /*
         Plugin Name: B3 Assets management
         Description: Manages assets handling for Google Cloud Storage
-        Version: 0.4
+        Version: 0.5
         Author: Beee
         Author URI: https://berryplasman.com
     */
@@ -168,6 +168,11 @@
                 return;
             }
 
+            static $retry_counts = [];
+            if ( ! isset( $retry_counts[ $attachment_id ] ) ) {
+                $retry_counts[ $attachment_id ] = 0;
+            }
+
             try {
                 $storage = $this->get_gcs_client();
                 $bucket  = $storage->bucket( $this->settings['gsc-bucket-name'] );
@@ -201,18 +206,21 @@
 
                         // Only do if Google confirms the object exists in the bucket
                         if ( $bucket && $bucket->exists() ) {
-                            do_action( 'after_successful_gsc_upload', $attachment_id, $file_path );
+                            // do_action( 'after_successful_gsc_upload', $attachment_id, $file_path );
                         }
                     }
                 }
 
             } catch ( \Exception $e ) {
-                error_log( sprintf( "GCS Critical Error: %s, but we'll retry", $e->getMessage() ) );
+                error_log( sprintf( "GCS Error for Attachment %d: %s", $attachment_id, $e->getMessage() ) );
 
-                static $retry_count = 0;
-                if ( $retry_count < 1 ) {
-                    $retry_count++;
-                    do_action( 'add_assets_to_gcs', $attachment_id, $file_paths );
+                // Only retry once
+                if ( $retry_counts[ $attachment_id ] < 1 ) {
+                    $retry_counts[ $attachment_id ]++;
+                    error_log( "Retrying upload for Attachment $attachment_id..." );
+
+                    // Call the method directly instead of do_action to avoid overhead
+                    $this->add_to_bucket( $attachment_id, $file_paths );
                 } else {
                     error_log( "GCS Max retries reached for Attachment $attachment_id. Giving up." );
                 }
@@ -253,7 +261,7 @@
         }
 
         public function filter_save_post_metadata( $metadata, $post_id ) {
-            update_post_meta( $attachment_id, '_uploaded_to_bucket', 1 );
+            update_post_meta( $post_id, '_uploaded_to_bucket', 1 );
             update_post_meta( $post_id, 'temp_metadata', serialize( $metadata ) );
             return $metadata;
         }
@@ -271,7 +279,7 @@
         public function after_insert_asset( array $metadata, int $attachment_id ) : array {
             if ( is_array( $metadata ) && $attachment_id ) {
                 if ( false === $this->settings[ 'block_connection' ] ) {
-                    $file_paths = B3AssetsManagement::get_file_paths( $attachment_id );
+                    $file_paths = B3AssetsManagement::get_file_paths( $attachment_id, $metadata );
 
                     if ( ! empty( $file_paths ) ) {
                         do_action( 'add_assets_to_gcs', $attachment_id, $file_paths );
@@ -320,7 +328,7 @@
          * Get file paths for files to upload
          * Uses relative upload path to match bucket structure perfectly.
          */
-        public static function get_file_paths( $post_id ) {
+        public static function get_file_paths( $post_id, $metadata = null ) {
             $paths = [];
             $full_path = get_attached_file( $post_id );
 
@@ -331,17 +339,11 @@
             $relative_path = _wp_relative_upload_path( $full_path );
             $paths[]       = $relative_path;
 
-            if ( wp_attachment_is_image( $post_id ) ) {
-                // Add thumbnails
-                $metadata = wp_get_attachment_metadata( $post_id );
-                if ( isset( $metadata[ 'sizes' ] ) ) {
-                    $base_dir = dirname( $relative_path );
-                    foreach( $metadata[ 'sizes' ] as $size ) {
-                        $paths[] = $base_dir . '/' . $size[ 'file' ];
-                    }
+            if ( ! empty( $metadata ) && isset( $metadata[ 'sizes' ] ) ) {
+                $base_dir = dirname( $relative_path );
+                foreach( $metadata[ 'sizes' ] as $size ) {
+                    $paths[] = $base_dir . '/' . $size[ 'file' ];
                 }
-            } else {
-                // No image, so no thumbnails needed
             }
 
             return array_unique( $paths );
