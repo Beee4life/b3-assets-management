@@ -30,12 +30,11 @@
             if ( static::class === 'B3AssetsManagement' ) {
                 add_action( 'admin_menu', [ $this, 'add_admin_pages' ] );
                 add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), [ $this, 'plugin_settings_link' ] );
-
+                add_action( 'remove_assets_by_cron', [ $this, 'remove_local_files_by_cron' ] );
             }
 
             add_action( 'admin_init',                       [ $this, 'form_handling' ] );
             add_action( 'admin_enqueue_scripts',            [ $this, 'enqueue_admin_style' ] );
-            add_action( 'remove_assets_by_cron',            [ $this, 'remove_local_files_by_cron' ] );
             add_action( 'remove_local_file',                [ $this, 'remove_local_file' ] );
             add_action( 'add_assets_to_gcs',                [ $this, 'add_to_bucket' ], 10, 2 );
             add_action( 'delete_assets_from_gcs',           [ $this, 'delete_from_bucket' ] );
