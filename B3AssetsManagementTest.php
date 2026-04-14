@@ -49,19 +49,16 @@
                 'fields'         => 'ids',
                 'date_query'     => [
                     [
-                        'before' => '16 hours ago', // Targets assets older than 16 hours
+                        'after'     => '48 hours ago', // Targets assets newer than 48 hours
+                        'inclusive' => true,
+                    ],
+                    [
+                        'before'    => '24 hours ago', // Targets assets older than 24 hours
                         'inclusive' => true,
                     ],
                 ],
             ];
             $assets = get_posts( $asset_args );
-            $assets = [
-                // 6428,
-                6485,
-            ];
-            $attachment_id = 6485;
-            $local = get_attached_file( $attachment_id );
-            echo '<pre>'; var_dump($local); echo '</pre>'; exit;
         }
 
         public static function get_instance() {

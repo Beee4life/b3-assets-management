@@ -1,8 +1,8 @@
 <?php
     /*
-        Plugin Name: B3 Assets management
+        Plugin Name: B3 Assets management (dev)
         Description: Manages assets handling for Google Cloud Storage
-        Version: 0.5
+        Version: 0.6
         Author: Beee
         Author URI: https://berryplasman.com
     */
@@ -20,7 +20,7 @@
                 'block_connection'  => (bool) (getenv('BLOCK_CONNECTION') ?: get_option('b3_gsc_bucket_name')),
                 'gsc-bucket-name'   => getenv('GSC_BUCKET_NAME') ?: get_option('b3_gsc_bucket_name'),
                 'gsc-key-file-path' => getenv('GSC_KEY_FILE_PATH') ?: '',
-                'version'           => '0.5',
+                'version'           => '0.6',
             ];
 
             // (de)activation hooks
@@ -75,7 +75,7 @@
             if ( isset( $_POST[ 'b3_settings_nonce' ] ) ) {
                 if ( ! wp_verify_nonce( $_POST[ 'b3_settings_nonce' ], 'b3-settings-nonce' ) ) {
                     $message = esc_html__( 'Link expired', 'b3-assets-management');
-                    B3AssetsManagement::b3am_errors()->add( 'error_settings_saved', $message );
+                    self::b3am_errors()->add( 'error_settings_saved', $message );
                 } else {
                     // all ok
                     if ( ! empty( $_POST[ 'b3_bucket_name' ] ) ) {
@@ -89,7 +89,7 @@
                         delete_option( 'b3_delete_by_cron' );
                     }
                     $message = esc_html__( 'Settings saved.', 'b3-assets-management');
-                    B3AssetsManagement::b3am_errors()->add( 'success_settings_saved', $message );
+                    self::b3am_errors()->add( 'success_settings_saved', $message );
                 }
             }
         }
@@ -123,14 +123,23 @@
             }
         }
 
-        public function remove_local_file( $full_path ) {
-            if ( ! $full_path ) {
+        public function remove_local_file( $asset_id ) {
+            if ( ! $asset_id ) {
                 return;
             }
 
-            if ( file_exists( $full_path ) ) {
-                unlink( $full_path );
-                do_action( 'delete_local_folder', $full_path );
+            $paths = self::get_file_paths( $asset_id );
+            $sizes = get_intermediate_image_sizes();
+
+            if ( is_array( $paths ) && ! empty( $paths ) ) {
+                foreach( $sizes as $size ) {
+                    $local_url = get_attached_file( $asset_id, $size );
+
+                    if ( file_exists( $local_url ) ) {
+                        unlink( $local_url );
+                        do_action( 'delete_local_folder', $local_url );
+                    }
+                }
             }
         }
 
@@ -362,8 +371,8 @@
         }
 
         public static function show_admin_notices() {
-            if ( $codes = B3AssetsManagement::b3am_errors()->get_error_codes() ) {
-                if ( is_wp_error( B3AssetsManagement::b3am_errors() ) ) {
+            if ( $codes = self::b3am_errors()->get_error_codes() ) {
+                if ( is_wp_error( self::b3am_errors() ) ) {
 
                     // Loop error codes and display errors
                     $span_class = false;
@@ -385,7 +394,7 @@
                     }
                     echo '<div id="message" class="notice ' . $span_class . 'csv2wp__notice is-dismissible">';
                     foreach ( $codes as $code ) {
-                        $message = B3AssetsManagement::b3am_errors()->get_error_message( $code );
+                        $message = self::b3am_errors()->get_error_message( $code );
                         echo '<div class="">';
                         if ( true == $prefix ) {
                             echo '<strong>' . $prefix . ':</strong> ';
