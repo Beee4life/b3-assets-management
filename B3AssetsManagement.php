@@ -1,6 +1,6 @@
 <?php
     /*
-        Plugin Name: B3 Assets management (dev)
+        Plugin Name: B3 Assets management
         Description: Manages assets handling for Google Cloud Storage
         Version: 0.6
         Author: Beee
@@ -23,7 +23,6 @@
                 'version'           => '0.6',
             ];
 
-            // (de)activation hooks
             register_activation_hook( __FILE__,     [ $this, 'plugin_activation' ] );
             register_deactivation_hook( __FILE__,   [ $this, 'plugin_deactivation' ] );
 
@@ -214,7 +213,7 @@
 
                         // Only do if Google confirms the object exists in the bucket
                         if ( $bucket && $bucket->exists() ) {
-                            // do_action( 'after_successful_gsc_upload', $attachment_id, $file_path );
+                            do_action( 'after_successful_gsc_upload', $attachment_id, $file_path );
                         }
                     }
                 }
