@@ -334,7 +334,7 @@
          * Uses relative upload path to match bucket structure perfectly.
          */
         public static function get_file_paths( $post_id, $metadata = null ) {
-            $paths = [];
+            $paths     = [];
             $full_path = get_attached_file( $post_id );
 
             if ( ! $full_path ) {
