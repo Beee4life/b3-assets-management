@@ -346,6 +346,10 @@
             $relative_path = _wp_relative_upload_path( $full_path );
             $paths[]       = $relative_path;
 
+            if ( empty( $metadata ) || ! isset( $metadata[ 'sizes' ] ) ) {
+                $metadata = wp_get_attachment_metadata( $post_id );
+            }
+
             if ( ! empty( $metadata ) && isset( $metadata[ 'sizes' ] ) ) {
                 $base_dir = dirname( $relative_path );
                 foreach( $metadata[ 'sizes' ] as $size ) {
