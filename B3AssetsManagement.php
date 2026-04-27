@@ -2,7 +2,7 @@
     /*
         Plugin Name: B3 Assets management
         Description: Manages assets handling for Google Cloud Storage
-        Version: 0.6
+        Version: 0.7
         Author: Beee
         Author URI: https://berryplasman.com
     */
