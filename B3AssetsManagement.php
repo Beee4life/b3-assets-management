@@ -17,10 +17,10 @@
 
         public function __construct() {
             $this->settings = [
-                'block_connection'  => (bool) (getenv('BLOCK_CONNECTION') ?: get_option('b3_gsc_bucket_name')),
+                'block_connection'  => (bool) (getenv('BLOCK_CONNECTION') ?: false ),
                 'gsc-bucket-name'   => getenv('GSC_BUCKET_NAME') ?: get_option('b3_gsc_bucket_name'),
                 'gsc-key-file-path' => getenv('GSC_KEY_FILE_PATH') ?: '',
-                'version'           => '0.6',
+                'version'           => '0.7',
             ];
 
             register_activation_hook( __FILE__,     [ $this, 'plugin_activation' ] );
@@ -326,9 +326,7 @@
 
         // Delete asset straight away (when attachment gets deleted)
         public function delete_media_straight_away( int $attachment_id, WP_Post $post ) {
-            if ( false === $this->settings[ 'block_connection' ] ) {
-                do_action( 'delete_assets_from_gcs', [ $attachment_id ] );
-            }
+            do_action( 'delete_assets_from_gcs', [ $attachment_id ] );
         }
 
         /*
