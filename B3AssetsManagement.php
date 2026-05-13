@@ -2,7 +2,7 @@
     /*
         Plugin Name: B3 Assets management
         Description: Manages assets handling for Google Cloud Storage
-        Version: 0.8
+        Version: 0.8.1
         Author: Beee
         Author URI: https://berryplasman.com
     */
@@ -20,7 +20,7 @@
                 'block_connection'  => (bool) (getenv('BLOCK_CONNECTION') ?: false ),
                 'gsc-bucket-name'   => getenv('GSC_BUCKET_NAME') ?: get_option('b3_gsc_bucket_name'),
                 'gsc-key-file-path' => getenv('GSC_KEY_FILE_PATH') ?: '',
-                'version'           => '0.8',
+                'version'           => '0.8.1',
             ];
 
             register_activation_hook( __FILE__,     [ $this, 'plugin_activation' ] );
@@ -322,12 +322,10 @@
 
         public function after_insert_asset( array $metadata, int $attachment_id ) : array {
             if ( is_array( $metadata ) && $attachment_id ) {
-                if ( false === $this->settings[ 'block_connection' ] ) {
-                    $file_paths = B3AssetsManagement::get_file_paths( $attachment_id, $metadata );
+                $file_paths = B3AssetsManagement::get_file_paths( $attachment_id, $metadata );
 
-                    if ( ! empty( $file_paths ) ) {
-                        do_action( 'add_assets_to_gcs', $attachment_id, $file_paths );
-                    }
+                if ( ! empty( $file_paths ) ) {
+                    do_action( 'add_assets_to_gcs', $attachment_id, $file_paths );
                 }
             }
 
