@@ -162,12 +162,40 @@
             $folder_path = $this->strip_file_name( $path );
 
             if ( is_dir( $folder_path ) ) {
-                $folder_contents = pb_scan_folder( $folder_path );
+                $folder_contents = $this->scan_folder( $folder_path );
 
                 if ( empty( $folder_contents ) ) {
                     rmdir( $folder_path );
                 }
             }
+        }
+
+        public function scan_folder( $target_dir, $files_only = true ) {
+            if ( $target_dir && is_dir( $target_dir ) ) {
+                $file_index = scandir( $target_dir );
+
+                $excluded_files = [
+                    '.',
+                    '..',
+                    '.DS_Store',
+                    'Thumbs.db',
+                    'debug.json',
+                    '__MACOSX',
+                ];
+                if ( is_array( $file_index ) ) {
+                    $actual_files = array();
+                    foreach ( $file_index as $file ) {
+                        if ( ! in_array( $file, $excluded_files ) ) {
+                            $actual_files[] = $file;
+                        }
+                    }
+                    if ( ! empty( $actual_files ) ) {
+                        return $actual_files;
+                    }
+                }
+            }
+
+            return [];
         }
 
         public function add_to_bucket( int $attachment_id, array $file_paths ) {
