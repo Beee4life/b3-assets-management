@@ -20,7 +20,7 @@
                 'block_connection'  => (bool) (getenv('BLOCK_CONNECTION') ?: false ),
                 'gsc-bucket-name'   => getenv('GSC_BUCKET_NAME') ?: get_option('b3_gsc_bucket_name'),
                 'gsc-key-file-path' => getenv('GSC_KEY_FILE_PATH') ?: '',
-                'version'           => '0.7',
+                'version'           => '0.8',
             ];
 
             register_activation_hook( __FILE__,     [ $this, 'plugin_activation' ] );
