@@ -38,7 +38,7 @@
             add_action( 'add_assets_to_gcs',                [ $this, 'add_to_bucket' ], 10, 2 );
             add_action( 'delete_assets_from_gcs',           [ $this, 'delete_from_bucket' ] );
             add_action( 'delete_local_folder',              [ $this, 'check_folder_to_delete' ] );
-            add_action( 'delete_attachment',                [ $this, 'delete_media_straight_away' ], 10, 2 );
+            add_action( 'delete_attachment',                [ $this, 'delete_media_straight_away' ] );
 
             add_filter( 'wp_generate_attachment_metadata',  [ $this, 'filter_save_post_metadata' ], 1, 2 );
             add_filter( 'wp_generate_attachment_metadata',  [ $this, 'filter_get_post_metadata' ], 25, 2 );
@@ -72,6 +72,9 @@
 
         public function form_handling() {
             if ( isset( $_POST[ 'b3_settings_nonce' ] ) ) {
+                if ( ! current_user_can( 'manage_options' ) ) {
+                    return;
+                }
                 if ( ! wp_verify_nonce( $_POST[ 'b3_settings_nonce' ], 'b3-settings-nonce' ) ) {
                     $message = esc_html__( 'Link expired', 'b3-assets-management');
                     self::b3am_errors()->add( 'error_settings_saved', $message );
@@ -127,19 +130,25 @@
                 return;
             }
 
-            $paths = self::get_file_paths( $asset_id );
-            $sizes = get_intermediate_image_sizes();
+            $file       = get_attached_file( $asset_id );
+            $meta       = wp_get_attachment_metadata( $asset_id );
+            $upload_dir = wp_upload_dir();
+            $base_dir   = dirname( $file );
 
-            if ( is_array( $paths ) && ! empty( $paths ) ) {
-                foreach( $sizes as $size ) {
-                    $local_url = get_attached_file( $asset_id, $size );
+            if ( file_exists( $file ) ) {
+                unlink( $file );
+            }
 
-                    if ( file_exists( $local_url ) ) {
-                        unlink( $local_url );
-                        do_action( 'delete_local_folder', $local_url );
+            if ( ! empty( $meta[ 'sizes' ] ) ) {
+                foreach( $meta[ 'sizes' ] as $size ) {
+                    $path = $base_dir . '/' . $size[ 'file' ];
+                    if ( file_exists( $path ) ) {
+                        unlink( $path );
                     }
                 }
             }
+
+            do_action( 'delete_local_folder', $file );
         }
 
         public function strip_file_name( string $path ) {
@@ -235,7 +244,7 @@
 
                     if ( false === $this->settings[ 'block_connection' ] ) {
                         $bucket->upload(
-                            file_get_contents( $real_path ),
+                            fopen( $real_path, 'r' ),
                             [ 'name' => $bucket_destination ]
                         );
 
@@ -273,7 +282,7 @@
 
             foreach ( (array) $file_ids as $asset_id ) {
                 $paths = self::get_file_paths( $asset_id );
-                $gsc_path = 'app/uploads';
+                $gsc_path = sprintf( '%s/uploads', apply_filters( 'b3_content_folder', 'wp-content' ) );
 
                 foreach ( $paths as $path ) {
                     $upload_path = sprintf( '%s/%s', $gsc_path, $path );
@@ -353,7 +362,7 @@
         }
 
         // Delete asset straight away (when attachment gets deleted)
-        public function delete_media_straight_away( int $attachment_id, WP_Post $post ) {
+        public function delete_media_straight_away( int $attachment_id ) {
             do_action( 'delete_assets_from_gcs', [ $attachment_id ] );
         }
 
