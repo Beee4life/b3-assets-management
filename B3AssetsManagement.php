@@ -1,11 +1,15 @@
 <?php
     /*
-        Plugin Name: B3 Assets management
+        Plugin Name: B3 Assets Management
         Description: Manages assets handling for Google Cloud Storage
-        Version: 0.8.1
+        Version: 0.9.0
         Author: Beee
         Author URI: https://berryplasman.com
+        License: GNU General Public License (GPL) version 2
     */
+
+    if ( ! defined( 'ABSPATH' ) ) exit;
+
     use Google\Cloud\Storage\StorageClient;
 
     /*
@@ -20,7 +24,7 @@
                 'block_connection'  => (bool) (getenv('BLOCK_CONNECTION') ?: false ),
                 'gsc-bucket-name'   => getenv('GSC_BUCKET_NAME') ?: get_option('b3_gsc_bucket_name'),
                 'gsc-key-file-path' => getenv('GSC_KEY_FILE_PATH') ?: '',
-                'version'           => '0.8.1',
+                'version'           => '0.9.0',
             ];
 
             register_activation_hook( __FILE__,     [ $this, 'plugin_activation' ] );
@@ -52,10 +56,12 @@
             $cron = 'remove_assets_by_cron';
             if ( ! wp_next_scheduled( $cron ) ) {
                 $scheduled = wp_schedule_event( time(), 'daily', $cron );
-                if ( is_wp_error( $scheduled ) ) {
-                    error_log( sprintf( 'Cron %s != scheduled', $cron ) );
-                } else {
-                    error_log( sprintf( 'Cron %s == scheduled', $cron ) );
+                if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+                    if ( is_wp_error( $scheduled ) ) {
+                        error_log( sprintf( 'Cron %s != scheduled', $cron ) );
+                    } else {
+                        error_log( sprintf( 'Cron %s == scheduled', $cron ) );
+                    }
                 }
             }
         }
@@ -164,17 +170,35 @@
         }
 
         public function check_folder_to_delete( string $path ) {
-            if ( ! $path ) {
+            // 1. Sanitize and normalize the path
+            $path = wp_normalize_path( trim( $path ) );
+            if ( empty( $path ) ) {
                 return;
             }
 
             $folder_path = $this->strip_file_name( $path );
 
+            // 2. Security: Prevent directory traversal (Ensure it's within WordPress)
+            if ( strpos( $folder_path, wp_normalize_path( ABSPATH ) ) !== 0 ) {
+                return; // Path is outside the WordPress root directory
+            }
+
             if ( is_dir( $folder_path ) ) {
                 $folder_contents = $this->scan_folder( $folder_path );
 
                 if ( empty( $folder_contents ) ) {
-                    rmdir( $folder_path );
+                    global $wp_filesystem;
+
+                    // Initialize WP_Filesystem if not already done
+                    if ( empty( $wp_filesystem ) ) {
+                        require_once ABSPATH . 'wp-admin/includes/file.php';
+                        if ( ! WP_Filesystem() ) {
+                            return; // Failed to initialize filesystem (e.g., credentials needed)
+                        }
+                    }
+
+                    // Fix: Changed 0755 to false so it does NOT delete recursively
+                    $wp_filesystem->rmdir( $folder_path, false );
                 }
             }
         }
@@ -217,18 +241,34 @@
                 $retry_counts[ $attachment_id ] = 0;
             }
 
+            // Track successfully uploaded paths so we don't re-upload them on retry
+            $successful_uploads = [];
+
             try {
+                global $wp_filesystem;
+
+                // Initialize WordPress Filesystem Abstraction
+                if ( empty( $wp_filesystem ) ) {
+                    require_once ABSPATH . 'wp-admin/includes/file.php';
+                    if ( ! WP_Filesystem() ) {
+                        error_log( "GCS Error: Could not initialize WP_Filesystem API." );
+                        return;
+                    }
+                }
+
                 $storage = $this->get_gcs_client();
                 $bucket  = $storage->bucket( $this->settings['gsc-bucket-name'] );
                 $wp_dir  = wp_upload_dir();
 
                 foreach ( $file_paths as $file_path ) {
-                    // 1. Resolve the physical file on the server (handles the /shared/ symlink)
+                    // 1. Resolve path using WP_Filesystem-friendly methods
                     $full_path = sprintf( '%s/%s', $wp_dir[ 'basedir' ], $file_path );
-                    $real_path = realpath( $full_path );
 
-                    if ( ! $real_path || ! file_exists( $real_path ) ) {
-                        error_log( "GCS Error: Physical file not found at $full_path. Skipping." );
+                    // Handle symlinks natively if possible, but fallback to direct check
+                    $real_path = realpath( $full_path ) ?: $full_path;
+
+                    if ( ! $wp_filesystem->exists( $real_path ) ) {
+                        error_log( "GCS Error: Physical file not found at $real_path. Skipping." );
                         continue;
                     }
 
@@ -243,28 +283,39 @@
                     $bucket_destination = sprintf( '%s/uploads/%s', apply_filters( 'b3_content_folder', 'wp-content' ), ltrim( $clean_name, '/' ) );
 
                     if ( false === $this->settings[ 'block_connection' ] ) {
+
+                        // Read file safely via WP_Filesystem
+                        $file_contents = $wp_filesystem->get_contents( $real_path );
+
+                        if ( false === $file_contents ) {
+                            error_log( "GCS Error: Could not read contents of $real_path" );
+                            continue;
+                        }
+
+                        // Upload string data directly to GCS
                         $bucket->upload(
-                            fopen( $real_path, 'r' ),
+                            $file_contents,
                             [ 'name' => $bucket_destination ]
                         );
 
-                        // Only do if Google confirms the object exists in the bucket
-                        if ( $bucket && $bucket->exists() ) {
-                            do_action( 'after_successful_gsc_upload', $attachment_id, $file_path );
-                        }
+                        // Track success and trigger immediate action hook
+                        $successful_uploads[] = $file_path;
+                        do_action( 'after_successful_gsc_upload', $attachment_id, $file_path );
                     }
                 }
 
             } catch ( \Exception $e ) {
                 error_log( sprintf( "GCS Error for Attachment %d: %s", $attachment_id, $e->getMessage() ) );
 
-                // Only retry once
-                if ( $retry_counts[ $attachment_id ] < 1 ) {
-                    $retry_counts[ $attachment_id ]++;
-                    error_log( "Retrying upload for Attachment $attachment_id..." );
+                // Calculate what still needs to be uploaded
+                $remaining_paths = array_diff( $file_paths, $successful_uploads );
 
-                    // Call the method directly instead of do_action to avoid overhead
-                    $this->add_to_bucket( $attachment_id, $file_paths );
+                // Only retry once, and only retry the paths that failed
+                if ( ! empty( $remaining_paths ) && $retry_counts[ $attachment_id ] < 1 ) {
+                    $retry_counts[ $attachment_id ]++;
+                    error_log( sprintf( "Retrying upload for %d remaining files of Attachment %d...", count( $remaining_paths ), $attachment_id ) );
+
+                    $this->add_to_bucket( $attachment_id, $remaining_paths );
                 } else {
                     error_log( "GCS Max retries reached for Attachment $attachment_id. Giving up." );
                 }
@@ -394,7 +445,7 @@
         }
 
         public function plugin_settings_link( $links ) {
-            $settings_link = sprintf( '<a href="%s">%s</a>', admin_url( 'media.php?page=b3-assets-management' ), esc_html__( 'Settings', 'b3-onboarding' ) );
+            $settings_link = sprintf( '<a href="%s">%s</a>', admin_url( 'media.php?page=b3-assets-management' ), esc_html__( 'Settings', 'b3-assets-management' ) );
             array_unshift( $links, $settings_link );
 
             return $links;
@@ -419,16 +470,16 @@
                             $prefix     = false;
                         } elseif ( strpos( $code, 'warning' ) !== false ) {
                             $span_class = 'notice-warning ';
-                            $prefix     = esc_html( __( 'Warning', 'csv2wp' ) );
+                            $prefix     = esc_html( __( 'Warning', 'b3-assets-management' ) );
                         } elseif ( strpos( $code, 'info' ) !== false ) {
                             $span_class = 'notice-info ';
                             $prefix     = false;
                         } else {
                             $span_class = 'notice-error ';
-                            $prefix     = esc_html( __( 'Error', 'csv2wp' ) );
+                            $prefix     = esc_html( __( 'Error', 'b3-assets-management' ) );
                         }
                     }
-                    echo '<div id="message" class="notice ' . $span_class . 'csv2wp__notice is-dismissible">';
+                    echo '<div id="message" class="notice ' . $span_class . 'b3_notice is-dismissible">';
                     foreach ( $codes as $code ) {
                         $message = self::b3am_errors()->get_error_message( $code );
                         echo '<div class="">';
