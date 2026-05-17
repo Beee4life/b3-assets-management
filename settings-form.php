@@ -1,4 +1,6 @@
 <?php
+    if ( ! defined( 'ABSPATH' ) ) exit;
+
     $bucket_name    = get_option( 'b3_gsc_bucket_name' );
     $delete_by_cron = get_option( 'b3_delete_by_cron' );
 ?>
