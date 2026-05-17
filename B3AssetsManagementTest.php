@@ -35,10 +35,14 @@
             ] );
 
             if ( $object && $object->exists() ) {
-                error_log( "✅ File uploaded!" );
+                if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+                    error_log( "✅ File uploaded!" );
+                }
 
                 $object->delete();
-                error_log( "✅ File deleted! Your permissions are perfect." );
+                if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+                    error_log( "✅ File deleted! Your permissions are perfect." );
+                }
             }
         }
 
