@@ -22,7 +22,7 @@
                     wp_die( "❌ Connection failed: Bucket does not exist." );
                 }
             } catch ( Exception $e ) {
-                wp_die( "❌ Error: " . $e->getMessage() );
+                wp_die( "❌ Error: " . esc_html( $e->getMessage() ) );
             }
         }
 

@@ -81,13 +81,13 @@
                 if ( ! current_user_can( 'manage_options' ) ) {
                     return;
                 }
-                if ( ! wp_verify_nonce( $_POST[ 'b3_settings_nonce' ], 'b3-settings-nonce' ) ) {
+                if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST[ 'b3_settings_nonce' ] ) ), 'b3-settings-nonce' ) ) {
                     $message = esc_html__( 'Link expired', 'b3-assets-management');
                     self::b3am_errors()->add( 'error_settings_saved', $message );
                 } else {
                     // all ok
                     if ( ! empty( $_POST[ 'b3_bucket_name' ] ) ) {
-                        update_option( 'b3_gsc_bucket_name', sanitize_text_field( $_POST[ 'b3_bucket_name' ] ) );
+                        update_option( 'b3_gsc_bucket_name', sanitize_text_field( wp_unslash( $_POST[ 'b3_bucket_name' ] ) ) );
                     } else {
                         delete_option( 'b3_gsc_bucket_name' );
                     }
@@ -479,14 +479,14 @@
                             $prefix     = esc_html( __( 'Error', 'b3-assets-management' ) );
                         }
                     }
-                    echo '<div id="message" class="notice ' . $span_class . 'b3_notice is-dismissible">';
+                    echo '<div id="message" class="notice ' . esc_attr( $span_class ) . 'b3_notice is-dismissible">';
                     foreach ( $codes as $code ) {
                         $message = self::b3am_errors()->get_error_message( $code );
                         echo '<div class="">';
                         if ( true == $prefix ) {
-                            echo '<strong>' . $prefix . ':</strong> ';
+                            echo sprintf( '<strong>%s:</strong> ', esc_html( $prefix ) );
                         }
-                        echo $message;
+                        echo esc_html( $message );
                         echo '</div>';
                     }
                     echo '</div>';
