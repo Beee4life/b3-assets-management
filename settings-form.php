@@ -1,4 +1,6 @@
 <?php
+    if ( ! defined( 'ABSPATH' ) ) exit;
+
     $bucket_name    = get_option( 'b3_gsc_bucket_name' );
     $delete_by_cron = get_option( 'b3_delete_by_cron' );
 ?>
@@ -7,7 +9,7 @@
     <h2>Settings</h2>
 
     <form name="" class="" method="POST" action="">
-        <input type="hidden" name="b3_settings_nonce" value="<?php echo wp_create_nonce( 'b3-settings-nonce' ); ?>" />
+        <input type="hidden" name="b3_settings_nonce" value="<?php echo esc_attr( wp_create_nonce( 'b3-settings-nonce' ) ); ?>" />
 
         <p>
             <?php esc_html_e( 'If you see any values as placeholder, that means you have added the values in your .env file already.', 'b3-assets-management' ); ?>
@@ -15,7 +17,7 @@
 
         <div class="row">
             <label for="bucket-name">Bucket name</label>
-            <input type="text" id="bucket-name" name="b3_bucket_name" value="<?php echo $bucket_name; ?>" placeholder="<?php echo getenv( 'GSC_BUCKET_NAME' ); ?>" />
+            <input type="text" id="bucket-name" name="b3_bucket_name" value="<?php echo esc_attr( $bucket_name ); ?>" placeholder="<?php echo esc_attr( getenv( 'GSC_BUCKET_NAME' ) ); ?>" />
         </div>
 
         <div class="row">
