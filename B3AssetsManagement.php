@@ -5,6 +5,7 @@
         Version: 0.9.0
         Author: Beee
         Author URI: https://berryplasman.com
+        Plugin URI: https://github.com/Beee4life/b3-assets-management
         License: GNU General Public License (GPL) version 2
     */
 
@@ -56,12 +57,8 @@
             $cron = 'remove_assets_by_cron';
             if ( ! wp_next_scheduled( $cron ) ) {
                 $scheduled = wp_schedule_event( time(), 'daily', $cron );
-                if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-                    if ( is_wp_error( $scheduled ) ) {
-                        error_log( sprintf( 'Cron %s != scheduled', $cron ) );
-                    } else {
-                        error_log( sprintf( 'Cron %s == scheduled', $cron ) );
-                    }
+                if ( defined( 'WP_DEBUG' ) && WP_DEBUG && is_wp_error( $scheduled ) ) {
+                    error_log( sprintf( 'Cron %s != scheduled', $cron ) );
                 }
             }
         }
