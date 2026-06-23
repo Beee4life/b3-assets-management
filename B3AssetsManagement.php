@@ -402,7 +402,9 @@
         }
 
         public function rename_file( $file ) {
-            $file[ 'name' ] = strtolower( $file[ 'name' ] );
+            if ( isset( $file[ 'name' ] ) ) {
+                $file[ 'name' ] = strtolower( $file[ 'name' ] );
+            }
 
             return $file;
         }
