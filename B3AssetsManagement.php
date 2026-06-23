@@ -297,7 +297,7 @@
 
                         // Track success and trigger immediate action hook
                         $successful_uploads[] = $file_path;
-                        do_action( 'after_successful_gsc_upload', $attachment_id, $file_path );
+                        do_action( 'after_successful_gsc_upload', $attachment_id, $file_path, $full_path );
                     }
                 }
 
